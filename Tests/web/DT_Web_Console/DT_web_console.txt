@@ -1,0 +1,361 @@
+*** Settings ***
+Suite Setup       SetupBrowsingEnv
+Suite Teardown    DestroyBrowsingEnv
+Resource          ../../../lib/web/WebLib.txt
+Resource          ../../../lib/web/Ingestion/Ingestion_Config_UI.txt
+Library           Selenium2Library
+*** Variables ***
+${url}            http://plaban-lenovo:9090/
+${app_pkg_loc}    /home/plaban/tf2jan/apa/pi-demo-3.4.0.apa
+${dt_version}     3.7.0
+${apex_version}    3.4.0
+
+*** Test Cases ***
+Run_Demo_App_Test      #PASS
+    [Documentation]    Test case details: plaban-lenovo:9090
+    Connect_To_DT_Console    ${url}
+    #Develop The App    Demo    Pi Demo
+    Launch The app    Pi Demo    PiDemo
+    sleep    10s
+    Click Element     xpath=/html/body/div[4]/div/div[4]/a
+    sleep    10s
+    ${state}   Get Text    xpath=//span[@dt-status='data.state']/span
+    Run Keyword Unless    '${state}'=='RUNNING'    Fail    PiDemo application is not started, current state is ${state}
+    [Teardown]    Close Browser
+
+
+
+Run_Non_Existing_Application_Test   #PASS
+    Connect_To_DT_Console    ${url}
+    #Develop The App     Demo    Mobile Demo
+    Launch The app    Pi Demo    PiDemo
+    #Mobile Demo    MobileDemo  #pre
+    [Teardown]    Close Browser
+
+Run_New_Application_Test      #PASS
+    Connect_To_DT_Console    ${url}
+    #Develop The App    Demo    Pi Demo    #/full/path/which/is/correct
+    Launch The app    Pi Demo    PiDemo
+    [Teardown]    Close Browser
+
+Verify_License_Details       #PASS
+    Connect_To_DT_Console    ${url}
+    ${test}=    License_Info_Details
+    Log Dictionary    ${test}
+    [Teardown]    Close Browser
+
+Import_New_License_Test     #PASS
+    Connect_To_DT_Console    ${url}
+    Import_License_File    /home/plaban/datatorrent/releases/3.6.0/COMMUNITY_EDITION_LICENSE.txt
+    #/home/corect/path/here/DT_Certification/dt-20150504212046-j6u0k2fe
+
+Verify_Gateway_Info_Details   #PASS
+    Connect_To_DT_Console    ${url}
+    ${test}=    System_Gw_Info_Details
+    Log Dictionary    ${test}
+    ${GateWayInfo}=  Get From Dictionary    ${test}    version
+    ${GateWayInfo}=  Convert To String   ${GateWayInfo}
+    ${version_string}=    convert to string        3.5.0-dt20160916
+    log    ${version_string}
+    #dictionary should contain item    ${test}    version    ${version_string}
+    List Should Contain Value    ${GateWayInfo}    ${version_string}
+    [Teardown]    Close Browser
+
+Verify_Hadoop_Info_Details   #PASS
+    Connect_To_DT_Console    ${url}
+    ${test}=    Hadoop_Info_Details
+    [Teardown]    Close Browser
+
+Application_Shutdown_Test    #PASS
+    [Documentation]    Test case details: plaban-lenovo:9090
+    Connect_To_DT_Console    ${url}
+    Develop The App    Demo    Pi Demo
+    Launch The app    Pi Demo    PiDemo
+    sleep    10s
+    Click Element     xpath=/html/body/div[4]/div/div[4]/a
+    #//t[contains(text(),"Application ID")]/../a    #Navigate to the launched app monitor page through the link on success message
+    sleep    15s
+    ${state}    Get Text    //span[@dt-status='data.state']/span
+    Run Keyword Unless    '${state}'=='RUNNING'    Fail    PiDemo application is not started, current state is ${state}
+    sleep    10s
+    Click Element    //span[text()='shutdown']/..    #Shutdown the launched app
+    Wait Until Page Contains Element    //h3[text()="End this application?"]    #timeout=10s
+    Click Element    //button[contains(@class,'btn-danger')]
+    sleep    10s
+    Wait Until Page Contains Element    //span[text()='FINISHED']/..
+    [Teardown]    Close Browser
+
+Application_Kill_Test   #PASS
+    [Documentation]    Test case details: plaban-lenovo:9090
+    Connect_To_DT_Console    ${url}
+    #Develop The App    Demo    Pi Demo
+    Launch The app    Pi Demo    PiDemo
+    sleep    10s
+    Click Element    xpath=/html/body/div[4]/div/div[4]/a
+    #//t[contains(text(),"Application ID")]/../a    #Navigate to the launched app monitor page through the link on success message
+    sleep    15s
+    ${state}    Get Text    //span[@dt-status='data.state']/span
+    Run Keyword Unless    '${state}'=='RUNNING'    Fail    PiDemo application is not started, current state is ${state}
+    sleep    10s
+    Click Element    //span[text()='kill']/..    #Shutdown the launched app
+    Wait Until Page Contains Element    //h3[text()="End this application?"]    #timeout=10s
+    Click Element    //button[contains(@class,'btn-danger')]
+    sleep    10s
+    Wait Until Page Contains Element    //span[text()='KILLED']/..
+    [Teardown]    Close Browser
+
+RTS_APEX_Version_Check
+    Connect_To_DT_Console    ${url}
+    ${config_info}=    System_Gw_Info_Details
+    Log Dictionary    ${config_info}
+    Comment    ${version_string}=    convert to string    3.4.0
+    Comment    log    ${version_string}
+    Comment    Verify Apex version string
+    ${apex_version_dict}=    Get From Dictionary    ${config_info}    version
+    ${apex_version_dict}=    Convert To String    ${apex_version_dict}
+    Log    ${apex_version_dict}
+    ${apex_version_str}=    Convert To String    ${apex_version}
+    List Should Contain Value    ${apex_version_dict}    ${apex_version_str}
+    ${rts_version_dict}    Get From Dictionary    ${config_info}    rtsVersion
+    ${rts_version_dict}    Convert To String    ${rts_version_dict}
+    Log    ${rts_version_dict}
+    ${rts_version_str}=    Convert To String    ${dt_version}
+    List Should Contain Value    ${rts_version_dict}    ${rts_version_str}
+    [Teardown]    Close Browser
+
+Operator_Kill_Test
+    Connect_To_DT_Console    ${url}
+    Develop The App    Demo    Pi Demo
+    Launch The app    Pi Demo    PiDemo
+    sleep    10s
+    Click Element    xpath=/html/body/div[4]/div/div[4]/a
+    #//t[contains(text(),"Application ID")]/../a    #Navigate to the launched app monitor page through the link on success message
+    Sleep    60s    #Delay in response due to remote connection
+    Click Element    //span[text()='physical']/..
+    sleep    5s
+    ${before_kill_Container_ID}    Get Text    //a[text()='rand']/../../..//a[@dt-page-href="Container"]
+    Click Element    //a[text()='rand']/../../..//a[@dt-page-href="Container"]    #Retrieve container ID for rand operator
+    Page Should Contain Element    //h2[contains(text(),'container')]
+    sleep    10s
+    Click Element    //tr[@class='even']//input    #Select a container
+    Click Element    //t[text()='kill']/..
+    Reload Page
+    sleep    10s    #Delay in response due to remote connection
+    Page Should Contain Element    //span[@ng-if='dtStatus' and text()='KILLED']
+    Click Element    //a[@ng-bind="breadcrumb.label" and contains(@ng-href,"apps")]    #Navigate to application monitor page
+    Sleep    5s
+    ${after_kill_Container_ID}    Get Text    //a[text()='rand']/../../..//a[@dt-page-href="Container"]
+    Should Not Be Equal As Strings    ${before_kill_Container_ID}    ${after_kill_Container_ID}
+    [Teardown]    Close Browser
+
+
+
+####User added
+Upload_package_test
+    Connect_To_DT_Console    ${url}
+    #Develop The App   Demo   Pi Demo
+
+    Launch The App    Pi Demo   PiDemo
+    sleep   10s
+### Can be used to type text   /html/body/div[2]/div/div[4]/div[2]/div[3]/table/thead/tr[2]
+###version --  link  ----/html/body/div[2]/div/div[4]/div[2]/div[2]/h2/a verify string
+###Name is unique
+
+###test-Plaban###
+Launch_List_Test    #PASS  #Launch_app_from_list_view
+    Connect_To_DT_Console    ${url}
+    Go_To_Page    Develop    Application Packages   #goto home->develop
+
+    Capture Page Screenshot
+
+    ${navigate_to_page}    Set Variable    //t[text()='Application Packages']/..    #generic way to find Application packages instead of Absolute path
+    Click Element   xpath=${navigate_to_page}       #goto develop->Application packages
+    Wait Until Page Contains    Applications    timeout=20s     #wait for application to become visible
+
+    Capture Page Screenshot
+
+    ${navigate_to_page}    Set Variable    //*[contains(text(),'pi-demo @ 3.5.0')]  #generic for version specific
+    Click Element   xpath=${navigate_to_page}
+    Wait Until Page Contains    v3.5.0          timeout=20s
+
+    Capture Page Screenshot
+
+    ${navigate_to_page}    Set Variable    //table//a[text()='PiDemo']           #since many launch options, select one with PiDemo only
+    Click Element   xpath=${navigate_to_page}
+    Wait Until Page Contains    Package Properties         timeout=20s
+
+    Capture Page Screenshot
+
+    ${navigate_to_page}    Set Variable    //button//span[contains(text(),'launch')]        #search the launch for PiDemo
+    Click Element   xpath=${navigate_to_page}
+    Wait Until Page Contains    Launch PiDemo         timeout=30s
+
+    Capture Page Screenshot
+
+    ${navigate_to_page}    Set Variable    //button//span[contains(text(),'Launch')]       #search the pop-up window after clicking launch
+    Click Element   xpath=${navigate_to_page}
+    Wait Until Page Contains    Application ID          timeout=20s
+
+    Capture Page Screenshot
+
+    #${navigate_to_page}    Set Variable   //div//span[contains(text(),'pause')]           #pause the application id popup
+    #Click Element   xpath=${navigate_to_page}
+
+    ${navigate_to_page}    Set Variable    //div//a[contains(text(),'application')]        #navigate to monitor
+    Click Element   xpath=${navigate_to_page}
+    Wait Until Page Contains    State       timeout=20s
+    sleep   10s
+
+    Capture Page Screenshot
+
+    ${state}    Get Text     xpath=//span[@dt-status='data.state']/span
+    Run Keyword Unless    '${state}'=='RUNNING'    Fail    PiDemo application is not started, current state is ${state}
+    [Teardown]    Close Browser
+
+
+Import_from_AppHub
+    Connect_To_DT_Console    ${url}
+    Go_To_Page    Develop    AppHub   #goto home->develop
+    Capture Page Screenshot
+
+    ${navigate_to_page}    Set Variable    //t[text()='AppHub Packages']/..    #generic way to find Application packages instead of Absolute path
+    Click Element   xpath=${navigate_to_page}       #goto develop->AppHub packages
+    Wait Until Page Contains    Word Count Demo    timeout=20s     #wait for application to become visible
+    Capture Page Screenshot
+
+    ${navigate_to_page}    Set Variable     /html/body/div[2]/div/div[4]/div[16]/div/div/div[2]/a  #generic for version specific
+    Click Element   xpath=${navigate_to_page}
+    Wait Until Page Contains    v3.4.0          timeout=20s
+    Capture Page Screenshot
+
+    sleep  2s
+    Click Button        xpath=//*[contains(text()=
+
+###test-Shubhu###
+Launch_New_Way
+    [Documentation]    Test case details:http://shubham-inspiron-5558:9090/
+    Connect_To_DT_Console    ${url}
+    #Develop The App    Demo    Pi Demo
+    Launch The App New    mobile-demo    MobileDemo    3.5.0
+    sleep    16s
+    Click Element     xpath=/html/body/div[4]/div/div[4]/a
+    sleep    10s
+    ${state}    Get Text    //span[@dt-status='data.state']/span
+    sleep    15s
+    Run Keyword Unless    '${state}'=='RUNNING'    Fail    PiDemo application is not started, current state is ${state}
+    [Teardown]    Close Browser
+
+####test-Aishwarya
+Configure_App_Test
+    Connect_To_DT_Console    ${url}
+    Go_To_Page    Develop     Development
+    Wait Until Page Contains     Application Packages
+
+    Click Element   xpath=/html/body/div[2]/div/div[1]/h2/a/t  #app packg link
+
+    Click Element   xpath=/html/body/div[2]/div/h1/div/label[1]/span  #move to grid view
+    ${Select_Demo_App_xpath}=    Set Variable     //*[contains(text(),'PiDemo')]       #find the app name
+    sleep   5s
+    log   ${Select_Demo_App_xpath}
+
+    Wait Until Element Is Visible    xpath=${Select_Demo_App_xpath}
+    Click Element    xpath=${Select_Demo_App_xpath}        #click on the app
+    sleep     5s
+
+    Click Element   xpath=/html/body/div[2]/div/h1/span[2]/div/button/t     #click on the configure button
+
+    Click Element   xpath=/html/body/ul/li/a           #click on the popup after the previous click
+
+    sleep   7s
+    #Wait Until Page Contains    create      timeout=5s
+
+
+   # Input Text      xpath=//*[@id="pkgName"]    PiDemo_1
+
+    Click Element   xpath=/html/body/div[1]/div/div/div[3]/button[1]      #click on create
+
+    sleep   5s
+
+    Click Element   xpath=/html/body/div[4]/div/div[4]/a        #click on the link in the successful msg
+
+    sleep   5s
+    Wait Until Page Contains    launch      timeout=10s
+    Click Element   xpath=/html/body/div[2]/div/h1/span[2]/button[3]      #click on the launch button for this configuration
+    sleep   5s
+    Click Element   xpath=/html/body/div[1]/div/div/form/div[3]/button[1]/span      #click on the green launch button in the popup
+
+    sleep   10s
+    Wait Until Page Contains    Application ID      timeout=30s
+    #Click Element     xpath=/html/body/div[4]/div/div[2]/span       #click on the pause button
+
+    Click Element     xpath=/html/body/div[4]/div/div[4]/a      #click on the appid  crashing
+    sleep    7s
+    ${state}   Get Text    xpath=//span[@dt-status='data.state']/span
+    sleep   20s
+    Run Keyword Unless    '${state}'=='RUNNING'    Fail    PiDemo application is not started, current state is ${state}   timeout=10s
+
+
+    [Teardown]    Close Browser
+
+
+##Misc Test-1##
+Test_Misc    #open google search and search for the particular item
+    ${url}     Set Variable    https://www.google.com
+    Open Browser    ${url}     CHROME
+    Capture Page Screenshot
+    Input Text     id=lst-ib    Pokemon Go
+    sleep    5s
+    Capture Page Screenshot
+    Wait Until Page Contains     All
+    Press Key     id=lst-ib         \\\13
+    #Click Element    xpath=//*[@id="sblsbb"]/button
+    sleep    5s
+    Capture Page Screenshot
+    #Wait Until Page Contains     Homepage
+    #${url}     Set Variable      //*[contains(text(),Homepage)]
+    #Click Element       xpath=//*[@id="rso"]/div[2]/div/h3/a
+    #Capture Page Screenshot
+    [Teardown]    Close Browser
+
+##Misc Test-2##
+Test_Misc_Gmail_login
+    ${url}     Set Variable    https://www.gmail.com                #variable for navigation
+    Open Browser    ${url}     CHROME                               #open chrome browser in new window
+    Capture Page Screenshot                                         #takes screenshot of current window
+
+    Input Text     Email    ${email_id}                             #inputs text(email-id) in the mail input box
+    Capture Page Screenshot                                         #takes screenshot of current window
+    Press Key       Email       \\\13                               #simulates  press of 'enter' key
+    sleep       5s                                                  #wait for 5 seconds
+    Capture Page Screenshot                                         #takes screenshot of current window
+
+    Click Element        //*[@id="PersistentCookie"]                #remove stay signed in check in check box
+    sleep       1s                                                  #wait for 1 seconds
+    Capture Page Screenshot                                         #takes screenshot of current window
+    sleep       2s                                                  #wait for 2 seconds
+
+    Input Text     Passwd    ${password}                            #inputs text(password) in the password input box
+    sleep       1s                                                  #wait for 1 seconds
+    Capture Page Screenshot                                         #takes screenshot of current window
+    Press Key      Passwd        \\\13                              #simulates  press of 'enter' key
+    Sleep       5s                                                  #wait for 5 seconds
+    Capture Page Screenshot                                         #takes screenshot of current window
+
+    Click Element       xpath=//*[@id="gb"]/div[1]/div[1]/div[2]/div[4]/div[1]/a/span        #Click on profile icon for option of log out
+    sleep       3s                                                  #wait for 3 seconds
+    Capture Page Screenshot                                         #takes screenshot of current window
+    Click Element       xpath=//*[@id="gb_71"]                      #Click on log out button
+    sleep       3s                                                  #wait 3 seconds
+    Capture Page Screenshot                                         #takes screenshot of current window
+
+    [Teardown]    Close Browser                                     #Closes the browser
+
+*** Keywords ***
+Open_Chrome_in_incognito_mode
+    [Arguments]    ${url}
+    ${options}=    Evaluate    sys.modules['selenium.webdriver'].ChromeOptions()    sys, selenium.webdriver
+    Call Method    ${options}    add_argument    --allow-running-insecure-content
+    Call Method    ${options}    add_argument    --disable-web-security
+    Call Method    ${options}    add_argument    --user-data-dir\=/Users/myName/AppData/Local/Google/Chrome/User Data
+    Create WebDriver    CHROME    chrome_options=${options}
+    Go To       ${url}
